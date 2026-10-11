@@ -1,180 +1,63 @@
-# NovaGap: Literature-Grounded Multi-Source Novelty Assessment & Gap-Filling Engine
+# Literature Search & Relevance Engine
 
-**Team**: SRIPATHIRAJAN V (2403917724421037), CHANDRU M (2403917724421010)  
-**Guide**: Mrs S.Sugantha  
-**Institution**: Thiagarajar College of Engineering, Madurai  
-**SDG**: 9 – Industry, Innovation and Infrastructure  
+A research benchmark and production-quality literature search assistant investigating whether citation reference lists reliably serve as ground truth for literature search on research ideas.
 
 ---
 
-## 1. Clear Problem Statement
+## 1. Research Study
 
-Students and early researchers struggle to answer a critical question before starting a project:
+**"Cited Is Not Relevant: Comparing Reference Lists and Human Relevance Judgments for Short-Idea Literature Search in Computer Science"**
 
-> **"Is my project idea actually novel, or does it already exist in papers, open-source code, or patents? If it exists, what specific gaps remain that I can fill?"**
+### Overview
+Automated literature search and novelty assessment systems frequently evaluate retrieval by treating a paper's bibliography (reference list) as the ground truth. This pre-registered study empirically examines the gap between reference lists and blind human relevance judgments for short-idea literature retrieval across Computer Science topics in OpenAlex.
 
-### Current Pain Points 
-- Manual search across Google Scholar, Semantic Scholar, arXiv, IEEE Xplore, GitHub, and ChatGPT is **time-consuming** (hours to days) and **fragmented**.
-- General-purpose AI assistants are not designed for **structured academic novelty validation** — without systematic cross-source retrieval across papers, code, and patents, their responses cannot serve as a reproducible, auditable evidence trail for research.
-- Existing tools either:
-  - Check only one source (papers **or** code),
-  - Are paid / enterprise-only,
-  - Give a black-box “novelty score” without literature-grounded reasoning,
-  - Do **not** identify concrete research gaps or suggest how to improve the idea.
-- Result: many student projects unknowingly reinvent existing work, and literature surveys remain weak.
+### Retrieval Systems Evaluated
+- **S1 (BM25 Lexical Baseline):** BM25Okapi using title and abstract text.
+- **S2 (SPECTER2 Dense Retrieval):** Dense semantic search using `allenai/specter2_base` with task adapters (`adhoc_query` and proximity adapters).
+- **S3 (Citation-Network Expansion):** Hybrid retrieval seeding top hits from S2 and pulling citation-graph neighbors published prior to the target's cutoff.
+- **S4 (Facet Decomposition + Reciprocal Rank Fusion):** LLM-guided facet extraction decomposing queries into constituent research aspects (task, setting, data type, constraints) merged via RRF ($k=60$).
 
-### Research Gap We Fill (based on recent papers)
-Recent high-quality work (ICLR 2025, ACL 2025, JASIST 2025, SDP@ACL 2025, arXiv 2025–2026) shows:
-
-1. LLMs can generate ideas judged **more novel** than human experts, but are **weaker on feasibility** and suffer from self-evaluation failures and low diversity (Si et al., ICLR 2025).
-2. Pure LLM novelty judgments are biased toward “medium novelty” and poorly calibrated; **literature-grounded RAG + re-ranking** is required (Shahid et al., Literature-Grounded Novelty Assessment, 2025).
-3. Most systems evaluate **papers only**. Almost none jointly consider **papers + GitHub repositories + patents** for student-level project ideas.
-4. Gap identification and **actionable improvement suggestions** (not just “not novel”) remain under-addressed.
-5. No free, student-focused, explainable, end-to-end system exists that produces a literature survey + novelty score + gap analysis + improved idea variants.
-
-**NovaGap** directly addresses these gaps.
+### Core Methodological Safeguards
+- **Strict Leakage Guard:** All candidate works and citation paths are strictly filtered to works published *prior* to each target paper's publication cutoff. No future citations, post-cutoff counts, or post-dated metadata are permitted during experiment runs.
+- **Blind Adjudicated Annotation:** Labeling pools combine top retrieved hits from S1–S4 and target reference papers, deduplicated and shuffled with sources masked, evaluated on a 3-point relevance rubric (2 = directly relevant, 1 = background, 0 = unrelated).
 
 ---
 
-## 2. Proposed Solution – What is New & Better
+## 2. Literature-Search Assistant Web Application
 
-**NovaGap** is an AI-powered platform that:
+A production-quality web application built on the shared `litsearch/` retrieval foundation to assist researchers in finding and organizing relevant literature for new ideas:
 
-1. Accepts a project title + short abstract / proposal.
-2. Simultaneously retrieves relevant work from:
-   - Academic papers (arXiv + Semantic Scholar style retrieval)
-   - Open-source implementations (GitHub)
-   - (Extensible to patents)
-3. Computes **literature-grounded** semantic similarity using modern embeddings (Sentence-Transformers) + optional BM25.
-4. Produces an explainable **Project Novelty Score** (0–100) with evidence.
-5. Automatically identifies **research gaps** (limitations of existing work, unexplored combinations, missing features).
-6. Uses a structured generation step to **suggest concrete improved project variants** that fill those gaps while remaining feasible for a student/academic timeline.
-7. Generates a ready-to-use literature survey summary + ranked references.
-
-### Key Technical Differentiators
-- Multi-source retrieval (papers + code) instead of single-source.
-- Embedding-based similarity + facet-style comparison for explainability (inspired by recent Idea Novelty Checker work).
-- Explicit gap extraction + gap-filling idea enhancement (addresses the “what is the benefit?” criticism).
-- Fully local embedding model → works offline for core scoring; live APIs used when available.
-- Transparent scoring formula and evidence snippets (no black-box LLM score only).
+- **Reading List & Prior Art:** Highlights closest prior work and explains relevance grounded strictly in retrieved titles and abstracts.
+- **Aspect & Combination Evidence:** Maps existing papers matching individual facets and pairs of facets to show where research combinations already exist.
+- **Ethical Safeguards:** **No match percentages and no automated novelty scores.** The tool assists literature discovery and organization; it does not issue automated novelty verdicts.
+- **Export Formats:** BibTeX, RIS, and CSV export with verified OpenAlex DOIs.
 
 ---
 
-## 3. System Architecture (High-Level)
+## 3. Repository Structure
 
 ```
-User Input (Title + Abstract)
-        │
-        ▼
-┌───────────────────────┐
-│  Preprocessing &      │
-│  Keyword Extraction   │
-└───────────┬───────────┘
-            │
-    ┌───────┴───────┐
-    ▼               ▼
-arXiv / Papers   GitHub Repos
-Retrieval        Retrieval
-    │               │
-    └───────┬───────┘
-            ▼
-┌───────────────────────┐
-│  Embedding +          │
-│  Similarity Ranking   │
-│  (Sentence-Transformers)│
-└───────────┬───────────┘
-            │
-            ▼
-┌───────────────────────┐
-│  Novelty Score +      │
-│  Gap Analysis Engine  │
-└───────────┬───────────┘
-            │
-            ▼
-┌───────────────────────┐
-│  Gap-Filling Idea     │
-│  Enhancement Module   │
-└───────────┬───────────┘
-            │
-            ▼
-   Interactive Report / Dashboard
+├── litsearch/                     # Core library: BM25, SPECTER2, citation expansion, facet fusion
+├── app/
+│   ├── backend/                   # FastAPI backend (REST API, safety validators, rate limiter)
+│   └── frontend/                  # React + Vite + TypeScript + Tailwind UI
+├── data/
+│   └── raw/                       # Cached OpenAlex snapshots
+├── prompts/                       # LLM prompt templates
+├── results/                       # Empirical run outputs, annotation pools, evaluation tables
+├── tests/                         # Unit tests and synthetic evaluation tests
+├── archive/
+│   ├── novagap_eval/              # Finished Study #2 (Link prediction & degree-matched evaluation)
+│   │   ├── results/               # Tables 1–6 and Protocol B CSVs
+│   │   ├── sample_caches.zip      # Archived OpenAlex random samples (SHA-256 verified)
+│   │   └── superseded/            # Superseded pilot scripts and biased caches
+│   └── old_novagap_app/           # Archived legacy prototype app and scripts
+├── AI_USE.md                      # Journal AI disclosure log
+└── MANIFEST.md                    # Parent commit hash and data snapshot provenance
 ```
 
 ---
 
-## 4. How to Run the Prototype (Review-2 Demo)
+## 4. Prior Studies & Archival Notice
 
-### Prerequisites
-- Python 3.10+
-- ~2–3 GB RAM (for the embedding model)
-
-### Installation
-```bash
-cd NovaGap-NoveltyEngine
-python -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### Run the API + Demo UI
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Open browser: **http://localhost:8000**
-
-### CLI Demo (no browser needed)
-```bash
-python -m app.cli_demo
-```
-
-### Offline / Safe Demo Mode
-If network or rate limits are an issue during presentation, the system automatically falls back to a high-quality curated sample corpus so the full pipeline still runs and produces realistic scores, gaps, and suggestions.
-
----
-
-## 5. Expected Outcomes & Benefits
-
-| Benefit | Description |
-|---------|-------------|
-| Time saving | Literature survey + novelty check reduced from hours/days to minutes |
-| Evidence-based | Every claim is backed by retrieved papers/repos |
-| Gap-focused | Does not stop at “not novel”; tells you **what is missing** and **how to improve** |
-| Student-friendly | Free, open, no API keys required for core functionality |
-| Research quality | Encourages original contributions instead of repeated projects |
-| Explainable | Novelty score formula + top similar works + gap statements are all visible |
-
----
-
-## 6. Module Overview (for Implementation)
-
-1. **Input & Preprocessing** – title, abstract, keyword extraction
-2. **Multi-Source Retrieval** – arXiv + GitHub (extensible)
-3. **Similarity & Novelty Analysis** – embeddings + scoring
-4. **Research Gap Identification** – limitation mining + unexplored angles
-5. **Gap-Filling Recommendation Engine** – improved idea variants
-6. **Report Generation** – literature survey, scores, references, suggestions
-
----
-
-## 7. References (Selected Q1 / Recent)
-
-- Si, Yang, Hashimoto. *Can LLMs Generate Novel Research Ideas? A Large-Scale Human Study with 100+ NLP Researchers*. ICLR 2025 / arXiv 2409.04109.
-- Shahid et al. *Literature-Grounded Novelty Assessment of Scientific Ideas*. SDP Workshop @ ACL 2025 / arXiv 2506.22026.
-- Wu et al. *Automated Novelty Evaluation of Academic Paper: A Collaborative Approach Integrating Human and LLM Knowledge*. JASIST 2025.
-- Lin et al. *Evaluating and Enhancing Large Language Models for Novelty Assessment in Scholarly Publications*. 2025.
-- Lewis et al. *Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks*. NeurIPS 2020.
-- Reimers & Gurevych. *Sentence-BERT*. EMNLP 2019.
-- arXiv API, Semantic Scholar Academic Graph API, GitHub REST API documentation.
-
----
-
-## 8. Future Work
-- Add patent search (Google Patents / USPTO open data).
-- Multi-agent self-critique loop for feasibility checking.
-- Fine-tuned novelty judge on peer-review data.
-- User study with real students measuring time saved and project quality improvement.
-
----
-
-**Contact / Demo**: Run the server and try the sample project ideas provided in the UI.
+The previous evaluation study on degree-matched vs. natural candidate evaluation in link prediction has concluded. All code, multi-seed replication tables, and data caches are preserved under [`archive/novagap_eval/`](archive/novagap_eval/) and tagged at `novagap-eval-final` (as well as `v1.0`).
